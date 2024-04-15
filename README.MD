@@ -5,7 +5,7 @@ docker build -t jscat/yt-dlp .
 
 # build multi platform
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t jscat/yt-dlp:latest --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t jscat/yt-dlp:2024.04.09 -t jscat/yt-dlp:latest --push .
 ```
 
 # run

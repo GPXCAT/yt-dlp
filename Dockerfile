@@ -1,9 +1,9 @@
-FROM python:3.10.11-slim-bullseye
+FROM python:3-alpine
 
-RUN python3 -m pip --no-cache-dir install yt-dlp
-
-RUN apt-get update \
-    && apt-get install -y ffmpeg \
-    && rm -rf /var/lib/apt/list/*
+RUN set -xe \
+    && apk add --no-cache \
+        ffmpeg \
+    && pip3 install --no-cache-dir yt-dlp \
+    && yt-dlp --version
 
 ENTRYPOINT ["yt-dlp"]

@@ -2,6 +2,10 @@
 ```bash
 docker build -t jscat/yt-dlp .
 ```
+# build update yt-dlp only
+```bash
+docker build -f Dockerfile.uponly -t jscat/yt-dlp .
+```
 
 # build multi platform
 ```bash

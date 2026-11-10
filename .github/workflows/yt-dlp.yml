@@ -1,0 +1,82 @@
+name: Publish yt-dlp image
+
+on:
+  schedule:
+    - cron: '27 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild even if this version is already published
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yt-dlp-dockerhub-publish
+  cancel-in-progress: false
+
+env:
+  IMAGE: jscat/yt-dlp
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check latest official release and existing image
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          FORCE: ${{ inputs.force }}
+        run: python3 scripts/check.py
+
+      - name: Set up QEMU
+        if: steps.check.outputs.build == 'true'
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Buildx
+        if: steps.check.outputs.publish == 'true'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Sign in to Docker Hub
+        if: steps.check.outputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push version tag
+        if: steps.check.outputs.build == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          pull: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            YTDLP_VERSION=${{ steps.check.outputs.version }}
+          tags: ${{ env.IMAGE }}:${{ steps.check.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Publish latest from version manifest
+        if: steps.check.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE:$VERSION"
+
+      - name: Notify Discord
+        if: ${{ always() && (failure() || steps.check.outputs.publish == 'true') }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RESULT: ${{ job.status }}
+          VERSION: ${{ steps.check.outputs.version }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/notify.py

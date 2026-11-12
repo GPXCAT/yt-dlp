@@ -2,7 +2,7 @@ name: Publish yt-dlp image
 
 on:
   schedule:
-    - cron: '27 * * * *'
+    - cron: '27 22 * * *'
   workflow_dispatch:
     inputs:
       force:
